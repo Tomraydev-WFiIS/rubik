@@ -1,6 +1,7 @@
-import * as THREE from "../node_modules/three/build/three.module.js";
-import { OrbitControls } from '../node_modules/three/examples/jsm/controls/OrbitControls.js';
-
+// import * as THREE from "../node_modules/three/build/three.module.js";
+// import { OrbitControls } from '../node_modules/three/examples/jsm/controls/OrbitControls.js';
+import * as THREE from 'https://threejs.org/build/three.module.js';
+import { OrbitControls } from 'https://threejs.org/examples/jsm/controls/OrbitControls.js';
 
 let camera, scene, renderer, controls, axesHelper;
 let geometry, material;

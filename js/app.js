@@ -1,5 +1,3 @@
-// import * as THREE from "../node_modules/three/build/three.module.js";
-// import { OrbitControls } from '../node_modules/three/examples/jsm/controls/OrbitControls.js';
 import * as THREE from 'https://threejs.org/build/three.module.js';
 import { OrbitControls } from 'https://threejs.org/examples/jsm/controls/OrbitControls.js';
 
@@ -7,7 +5,7 @@ let camera, scene, renderer, controls, axesHelper;
 let geometry, material;
 let allCubesGroup;
 
-var debug = false;
+var debug = true;
 var cubes = [];
 var colors = [
     0xffffff, //white
@@ -17,11 +15,13 @@ var colors = [
     0xff5700, //orange
     0xb80a31, //red
 ];
+var spacing = 1.02;
 
 init();
 createScene();
 animate();
-
+// turnFace("y", "+");
+// turnFace("y", "-");
 // --------------------------------------------------------------------------------
 function init() {
     axesHelper = new THREE.AxesHelper(5);
@@ -43,23 +43,31 @@ function init() {
     controls.enablePan = false;
 }
 
+function animate() {
+    requestAnimationFrame(animate);
+    // allCubesGroup.rotation.x += 0.001;
+    // allCubesGroup.rotation.y += 0.001;
+    controls.update();
+    renderer.render(scene, camera);
+}
+
 function createScene() {
     createObjects();
-    allCubesGroup = new THREE.Group();
-    for(var cube of cubes){
-        allCubesGroup.add(cube);
-    }
-    scene.add(allCubesGroup);
+    // allCubesGroup = new THREE.Group();
+    // for(var cube of cubes){
+    //     allCubesGroup.add(cube);
+    // }
+    // scene.add(allCubesGroup);
 }
 function createObjects() {
     for (let i = -1; i <= 1; i++) {
         for (let j = -1; j <= 1; j++) {
             for (let k = -1; k <= 1; k++) {
                 var cube = newCube();
-                let space = 1.02;
-                cube.position.x = i*space;
-                cube.position.y = j*space;
-                cube.position.z = k*space;
+                let spacing = 1.02;
+                cube.position.x = i*spacing;
+                cube.position.y = j*spacing;
+                cube.position.z = k*spacing;
 
                 if (i == -1){
                     cube.geometry.faces[1*2].color.setHex(colors[0]);
@@ -101,10 +109,64 @@ function newCube() {
     return new THREE.Mesh(geometry, material);
 }
 
-function animate() {
-    requestAnimationFrame(animate);
-    allCubesGroup.rotation.x += 0.001;
-    allCubesGroup.rotation.y += 0.001;
-    controls.update();
-    renderer.render(scene, camera);
+function getActiveGroup(axis, orientation) {
+    switch(orientation) {
+        case "+":
+            var position = spacing;
+            break;
+        case "-":
+            var position = -spacing;
+            break;
+    }
+    var activeGroup = new THREE.Group();
+    for(var cube of cubes){
+        if (cube.position[axis] == position) {
+            console.log(cube);
+            activeGroup.add(cube);
+        }
+    }
+    return activeGroup;
+}
+
+function turnFace(axis, orientation, direction=1, speed=0.01) {
+    var activeGroup = getActiveGroup(axis, orientation);
+    scene.add(activeGroup);
+    var initialRotation = activeGroup.rotation[axis];
+    var step = Math.PI * speed;
+    function animateTurn(agg){
+        if ((agg + step) >= Math.PI/2) {
+            activeGroup.rotation[axis] = initialRotation + direction * Math.PI/2;
+            // activeGroup.children.forEach(function(cube) {
+            //     scene.add(cube);
+            // })
+            return;
+        }
+        agg += step;
+        activeGroup.rotation[axis] += direction * step;
+        requestAnimationFrame(() => animateTurn(agg));
+    }
+    animateTurn(0);
+}
+document.addEventListener("keydown", onDocumentKeyDown);
+function onDocumentKeyDown(event) {
+    var keyCode = event.which || event.keyCode;
+    if (keyCode == 16) return; // shift
+    var direction = event.shiftKey?-1:1;
+    switch(keyCode) {
+        case 88: // down
+            turnFace("y", "-", direction);
+            break;
+        case 65: // left
+            turnFace("z", "+", direction);
+            break;
+        case 83: // front
+            turnFace("x", "+", direction);
+            break;
+        case 68: // right
+            turnFace("z", "-", direction);
+            break;
+        case 87: // up
+            turnFace("y", "+", direction);
+            break;
+    }
 }

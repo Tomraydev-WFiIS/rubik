@@ -1,9 +1,11 @@
 import * as THREE from 'https://threejs.org/build/three.module.js';
 import { OrbitControls } from 'https://threejs.org/examples/jsm/controls/OrbitControls.js';
+// import { Stats } from 'https://mrdoob.github.io/stats.js/build/stats.module.js';
 
 let camera, scene, renderer, controls, axesHelper;
 let geometry, material;
-let allCubesGroup;
+let stopwatch;
+let light;
 
 var debug = true;
 var cubes = [];
@@ -15,19 +17,31 @@ var colors = [
     0xff5700, //orange
     0xb80a31, //red
 ];
-var spacing = 1.02;
+var spacing = 1.02; // 1.02
+var moveQueue = [];
+var userMoveHistory = [];
+var shuffleMoveHistory = [];
+var moveInProgress = false;
+var gameInProgress = false;
+var startingGame = false;
+var defaultSpeed = 0.05; // 0.05
+var speed = defaultSpeed;
+
 
 init();
 createScene();
 animate();
-// turnFace("y", "+");
-// turnFace("y", "-");
 // --------------------------------------------------------------------------------
 function init() {
     axesHelper = new THREE.AxesHelper(5);
-    
+    // if(debug){
+    //     stats = createStats();
+    //     document.body.appendChild(stats.domElement);
+    // }
+
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xe5e5e5);
+    // scene.background = new THREE.Color(0xf8f8f8);
+    scene.background = new THREE.Color(0x333333);
     if (debug) scene.add(axesHelper);
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -41,33 +55,33 @@ function init() {
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enablePan = false;
+
+    // light = new THREE.AmbientLight(0x400000);
+    // light = new THREE.DirectionalLight( 0xffffff, 0.5 );
+    // scene.add(light);
 }
 
 function animate() {
     requestAnimationFrame(animate);
-    // allCubesGroup.rotation.x += 0.001;
-    // allCubesGroup.rotation.y += 0.001;
+    applyMoves();
+    if (gameInProgress) checkForWin();
     controls.update();
     renderer.render(scene, camera);
+    // if(debug) stats.update();
 }
 
 function createScene() {
     createObjects();
-    // allCubesGroup = new THREE.Group();
-    // for(var cube of cubes){
-    //     allCubesGroup.add(cube);
-    // }
-    // scene.add(allCubesGroup);
 }
 function createObjects() {
     for (let i = -1; i <= 1; i++) {
         for (let j = -1; j <= 1; j++) {
             for (let k = -1; k <= 1; k++) {
                 var cube = newCube();
-                let spacing = 1.02;
                 cube.position.x = i*spacing;
                 cube.position.y = j*spacing;
                 cube.position.z = k*spacing;
+                cube.initialPosition = cube.position.clone()
 
                 if (i == -1){
                     cube.geometry.faces[1*2].color.setHex(colors[0]);
@@ -118,55 +132,216 @@ function getActiveGroup(axis, orientation) {
             var position = -spacing;
             break;
     }
-    var activeGroup = new THREE.Group();
+    var activeGroup = [];
     for(var cube of cubes){
         if (cube.position[axis] == position) {
-            console.log(cube);
-            activeGroup.add(cube);
+            activeGroup.push(cube);
         }
     }
     return activeGroup;
 }
 
-function turnFace(axis, orientation, direction=1, speed=0.01) {
+function turnFace(move) {
+    var axis = move.axis;
+    var orientation = move.orientation;
+    var direction = move.direction;
+
     var activeGroup = getActiveGroup(axis, orientation);
-    scene.add(activeGroup);
-    var initialRotation = activeGroup.rotation[axis];
+    var pivot = new THREE.Object3D();
+    pivot.rotation.set(0,0,0);
+    pivot.updateMatrixWorld(); //needed?
+    scene.add(pivot);
+    for(var cube of activeGroup){
+        pivot.attach(cube);
+    }
     var step = Math.PI * speed;
     function animateTurn(agg){
-        if ((agg + step) >= Math.PI/2) {
-            activeGroup.rotation[axis] = initialRotation + direction * Math.PI/2;
-            // activeGroup.children.forEach(function(cube) {
-            //     scene.add(cube);
-            // })
+        if ((agg + step) >= Math.PI/2.0) {
+            pivot.rotation[axis] = direction * Math.PI/2.0;
+            pivot.updateMatrixWorld(); // needed?
+            for(var cube of activeGroup){
+                scene.attach(cube)
+                cube.position.x = Math.round((cube.position.x + Number.EPSILON) * 100) / 100;
+                cube.position.y = Math.round((cube.position.y + Number.EPSILON) * 100) / 100;
+                cube.position.z = Math.round((cube.position.z + Number.EPSILON) * 100) / 100;
+                cube.updateMatrixWorld(); // needed?
+            }
+            scene.remove(pivot);
+            moveInProgress = false;
             return;
         }
         agg += step;
-        activeGroup.rotation[axis] += direction * step;
+        pivot.rotation[axis] += direction * step;
         requestAnimationFrame(() => animateTurn(agg));
     }
     animateTurn(0);
 }
 document.addEventListener("keydown", onDocumentKeyDown);
 function onDocumentKeyDown(event) {
+    // if (!gameInProgress) return;
     var keyCode = event.which || event.keyCode;
     if (keyCode == 16) return; // shift
-    var direction = event.shiftKey?-1:1;
+    var direction = event.shiftKey?1:-1;
+    var move;
     switch(keyCode) {
-        case 88: // down
-            turnFace("y", "-", direction);
+        case 88: // x - down
+            move = {axis: "y", orientation: "-", direction: direction};
             break;
-        case 65: // left
-            turnFace("z", "+", direction);
+        case 65: // a - left
+            move = {axis: "z", orientation: "+", direction: direction};
             break;
-        case 83: // front
-            turnFace("x", "+", direction);
+        case 83: // s - front
+            move = {axis: "x", orientation: "+", direction: direction};
             break;
-        case 68: // right
-            turnFace("z", "-", direction);
+        case 68: // d - right
+            move = {axis: "z", orientation: "-", direction: direction};
             break;
-        case 87: // up
-            turnFace("y", "+", direction);
+        case 87: // w - up
+            move = {axis: "y", orientation: "+", direction: direction};
             break;
+        case 90: // z - back
+            move = {axis: "x", orientation: "-", direction: direction};
+            break;
+        default:
+            return;
+    }
+    moveQueue.push(move);
+    userMoveHistory.push(move);
+}
+
+function applyMoves() {
+    if (moveQueue.length > 0 && !moveInProgress) {
+        moveInProgress = true;
+        turnFace(moveQueue.shift());
+    }
+    if (moveQueue.length == 0 && !moveInProgress && startingGame) {
+        startGame2();
     }
 }
+
+function shuffle(turns=20) {
+    var previous_move = getRandomMove();
+    for(var i = 0; i < turns;){
+        let move = getRandomMove();
+        if (areOppositeMoves(move, previous_move)) continue;
+        moveQueue.push(move);
+        shuffleMoveHistory.push(move);
+        previous_move = move;
+        i++;
+    }
+}
+
+function getRandomMove() {
+    return {axis: choose(["x", "y", "z"]), orientation: choose(["+", "-"]), direction: choose([1, -1])}
+}
+
+function areOppositeMoves(m1, m2) {
+    if (m1.axis == m2.axis && m1.orientation == m2.orientation && m1.direction != m2.direction){
+        return true;
+    } else {
+        return false;
+    }
+}
+
+function resetSpeed(){
+    speed = defaultSpeed;
+}
+
+function choose(choices) {
+    var index = Math.floor(Math.random() * choices.length);
+    return choices[index];
+}
+
+function startGame() {
+    document.getElementById("startBtn").style.display  = "none";
+    startingGame = true;
+    speed = 0.5;
+    resetGame();
+    shuffle(10);
+}
+
+function startGame2() {
+    document.getElementById("stopwatch").style.display = "none"; // too distracting
+    startStopwatch();
+    resetSpeed();
+    startingGame = false;
+    gameInProgress = true;
+    setTimeout(solve, 3000);
+}
+
+function finishGame() {
+    gameInProgress = false;
+    stopStopwatch();
+    document.getElementById("startBtn").style.display  = "block";
+    document.getElementById("stopwatch").style.display = "block";
+}
+
+function startStopwatch() {
+    document.getElementById("stopwatch").innerHTML = "00:00:00";
+    var start = new Date().getTime();
+
+    stopwatch = setInterval(function() {
+        var elapsed =  new Date(new Date().getTime() - start);
+        var hh = pad(elapsed.getUTCHours());
+        var mm = pad(elapsed.getMinutes());
+        var ss = pad(elapsed.getSeconds());
+        var timeString = `${hh}:${mm}:${ss}`;
+        document.getElementById("stopwatch").innerHTML = timeString;
+    }, 1000);
+}
+
+function pad(n){return n<10 ? '0'+n : n}
+
+function stopStopwatch() {
+    clearInterval(stopwatch);
+}
+
+function resetGame() {
+    for(var cube of cubes){
+        scene.remove(cube);
+    }
+    cubes = [];
+    moveQueue = [];
+    userMoveHistory = [];
+    shuffleMoveHistory = [];
+    createObjects();
+}
+
+function checkForWin() {
+    if(cubes.every(checkCube)) {
+        finishGame();
+    }
+}
+
+function checkCube(cube){
+    return (
+        cube.position.x == cube.initialPosition.x &&
+        cube.position.y == cube.initialPosition.y &&
+        cube.position.z == cube.initialPosition.z
+    )
+}
+
+function solve() {
+    // primitive solver, reverse every move made
+    let moves = shuffleMoveHistory.concat(userMoveHistory).reverse();
+    for(var move of moves){
+        move.direction = (move.direction==1)?-1:1;
+        moveQueue.push(move);
+    }
+}
+
+
+function createStats() {
+    var stats = new Stats();
+    stats.setMode(0);
+
+    stats.domElement.style.position = 'absolute';
+    stats.domElement.style.left = '0';
+    stats.domElement.style.top = '0';
+
+    return stats;
+}
+
+// exports
+window.startGame = startGame
+window.resetGame = resetGame

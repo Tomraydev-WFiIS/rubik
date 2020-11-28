@@ -5,9 +5,8 @@ import { OrbitControls } from 'https://threejs.org/examples/jsm/controls/OrbitCo
 let camera, scene, renderer, controls, axesHelper;
 let geometry, material;
 let stopwatch;
-let light;
 
-var debug = true;
+var debug = false;
 var cubes = [];
 var colors = [
     0xffffff, //white
@@ -40,8 +39,7 @@ function init() {
     // }
 
     scene = new THREE.Scene();
-    // scene.background = new THREE.Color(0xf8f8f8);
-    scene.background = new THREE.Color(0x333333);
+    scene.background = new THREE.Color(0xf5f5f5);
     if (debug) scene.add(axesHelper);
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -56,9 +54,6 @@ function init() {
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enablePan = false;
 
-    // light = new THREE.AmbientLight(0x400000);
-    // light = new THREE.DirectionalLight( 0xffffff, 0.5 );
-    // scene.add(light);
 }
 
 function animate() {
@@ -178,7 +173,6 @@ function turnFace(move) {
 }
 document.addEventListener("keydown", onDocumentKeyDown);
 function onDocumentKeyDown(event) {
-    // if (!gameInProgress) return;
     var keyCode = event.which || event.keyCode;
     if (keyCode == 16) return; // shift
     var direction = event.shiftKey?1:-1;
@@ -264,14 +258,15 @@ function startGame2() {
     document.getElementById("stopwatch").style.display = "none"; // too distracting
     startStopwatch();
     resetSpeed();
+    document.getElementById("solveBtn").style.display  = "block";
     startingGame = false;
     gameInProgress = true;
-    setTimeout(solve, 3000);
 }
 
 function finishGame() {
     gameInProgress = false;
     stopStopwatch();
+    document.getElementById("solveBtn").style.display  = "none";
     document.getElementById("startBtn").style.display  = "block";
     document.getElementById("stopwatch").style.display = "block";
 }
@@ -330,7 +325,6 @@ function solve() {
     }
 }
 
-
 function createStats() {
     var stats = new Stats();
     stats.setMode(0);
@@ -344,4 +338,4 @@ function createStats() {
 
 // exports
 window.startGame = startGame
-window.resetGame = resetGame
+window.solve = solve

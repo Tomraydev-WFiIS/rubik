@@ -28,6 +28,14 @@ body {
     display: none;
 }
 
+#solveBtn {
+    position: absolute;
+    left: 50%;
+    bottom: 2em;
+    transform: translateX(-50%);
+    display: none;
+}
+
 .btn {
 
     font-size: 2em;

@@ -50,3 +50,18 @@ body {
 .btn:focus {
     outline: none;
 }
+
+#info {
+    position: absolute;
+    left: 1em;
+    display: block;
+    white-space: pre-line;
+    background-color: #fff;
+    margin: 1em 0;
+    padding: 0 1em;
+    border: 1px #333 solid;
+    border-radius: 1em;
+}
+#info> p {
+    margin: 0;
+}

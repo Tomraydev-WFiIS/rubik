@@ -185,13 +185,13 @@ function onDocumentKeyDown(event) {
     let direction = event.shiftKey?1:-1;
     let move;
     switch(keyCode) {
-        case 88: // x - down
+        case 83: // s - down
             move = {axis: "y", orientation: "-", direction: direction};
             break;
         case 65: // a - left
             move = {axis: "z", orientation: "+", direction: direction};
             break;
-        case 83: // s - front
+        case 70: // f - front
             move = {axis: "x", orientation: "+", direction: direction};
             break;
         case 68: // d - right
